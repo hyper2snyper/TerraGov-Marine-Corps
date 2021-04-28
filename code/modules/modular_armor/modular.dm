@@ -420,16 +420,15 @@
 	return TRUE
 
 /obj/item/clothing/head/modular/attack_hand(mob/living/user)
-	. = ..()
-	if(!hat)
-		return
 	var/mob/living/carbon/human/holder = user
-	if(src == holder.get_inactive_held_item())
+	if(hat && src == holder.get_inactive_held_item())
 		if(!do_after(holder, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
 			return TRUE
 		var/obj/item/clothing/head/new_hat = hat
 		holder.put_in_active_hand(new_hat)
 		hat = null
+		update_overlays()
+	return ..()
 
 /obj/item/clothing/head/modular/screwdriver_act(mob/living/user, obj/item/I)
 	. = ..()
