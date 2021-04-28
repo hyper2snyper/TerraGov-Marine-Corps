@@ -375,10 +375,13 @@
 		return TRUE
 	
 	if(istype(I, /obj/item/clothing/head))
+		if(hat)
+			to_chat(user, "<span class='notice'>There is already a hat on [src].</span>")
+			return TRUE
 		var/obj/item/clothing/head/attaching_hat = I
-		if(attaching_hat.flags_inv_hide & HIDETOPHAIR)
+		if(attaching_hat.flags_inv_hide & HIDEEARS)
 			to_chat(user, "<span class='notice'>That hat cannot fit over [src].</span>")
-			return
+			return TRUE
 		if(!do_after(user, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
 			return TRUE
 		hat = attaching_hat
@@ -388,6 +391,7 @@
 
 /obj/item/clothing/head/modular/Destroy()
 	QDEL_NULL(installed_module)
+	QDEL_NULL(hat)
 	return ..()
 
 /obj/item/clothing/head/modular/item_action_slot_check(mob/user, slot)
@@ -415,7 +419,17 @@
 	installed_module?.toggle_module(user, src)
 	return TRUE
 
-
+/obj/item/clothing/head/modular/attack_hand(mob/living/user)
+	. = ..()
+	if(!hat)
+		return
+	var/mob/living/carbon/human/holder = user
+	if(src == holder.get_inactive_held_item())
+		if(!do_after(holder, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
+			return TRUE
+		var/obj/item/clothing/head/new_hat = hat
+		holder.put_in_active_hand(new_hat)
+		hat = null
 
 /obj/item/clothing/head/modular/screwdriver_act(mob/living/user, obj/item/I)
 	. = ..()
