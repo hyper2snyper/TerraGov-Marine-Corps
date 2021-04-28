@@ -344,6 +344,9 @@
 	/// Reference to the installed module
 	var/obj/item/helmet_module/installed_module
 
+	///
+	var/obj/item/clothing/head/hat
+
 	/// How long it takes to attach or detach to this item
 	var/equip_delay = 3 SECONDS
 
@@ -353,25 +356,34 @@
 	if(.)
 		return
 
-	if(!istype(I, /obj/item/facepaint))
-		return FALSE
+	if(istype(I, /obj/item/facepaint))
+		var/obj/item/facepaint/paint = I
+		if(paint.uses < 1)
+			to_chat(user, "<span class='warning'>\the [paint] is out of color!</span>")
+			return TRUE
+		paint.uses--
 
-	var/obj/item/facepaint/paint = I
-	if(paint.uses < 1)
-		to_chat(user, "<span class='warning'>\the [paint] is out of color!</span>")
+		var/new_color = tgui_input_list(user, "Pick a color", "Pick color", list(
+			"black", "snow", "desert", "gray", "brown", "red", "blue", "yellow", "green", "aqua", "purple", "orange"
+		))
+
+		if(!do_after(user, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
+			return TRUE
+
+		icon_state = "[initial(icon_state)]_[new_color]"
+
 		return TRUE
-	paint.uses--
-
-	var/new_color = tgui_input_list(user, "Pick a color", "Pick color", list(
-		"black", "snow", "desert", "gray", "brown", "red", "blue", "yellow", "green", "aqua", "purple", "orange"
-	))
-
-	if(!do_after(user, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
-		return TRUE
-
-	icon_state = "[initial(icon_state)]_[new_color]"
-
-	return TRUE
+	
+	if(istype(I, /obj/item/clothing/head))
+		var/obj/item/clothing/head/attaching_hat = I
+		if(attaching_hat.flags_inv_hide & HIDETOPHAIR)
+			to_chat(user, "<span class='notice'>That hat cannot fit over [src].</span>")
+			return
+		if(!do_after(user, 1 SECONDS, TRUE, src, BUSY_ICON_GENERIC))
+			return TRUE
+		hat = attaching_hat
+		qdel(attaching_hat)
+		update_overlays()
 
 
 /obj/item/clothing/head/modular/Destroy()
@@ -430,11 +442,14 @@
 	. = ..()
 	if(installed_module)
 		. += image(installed_module.icon, installed_module.item_state)
+	if(hat)
+		. += image(hat.item_icons[slot_head_str], hat.item_state)
 
 /obj/item/clothing/head/modular/apply_custom(image/standing)
 	if(installed_module)
 		standing.overlays += image(installed_module.icon, ITEM_STATE_IF_SET(installed_module))
-
+	if(hat)
+		standing.overlays += image(hat.item_icons[slot_head_str], ITEM_STATE_IF_SET(hat))
 
 /obj/item/clothing/head/modular/get_mechanics_info()
 	. = ..()
