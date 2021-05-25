@@ -2,13 +2,14 @@
 
 
 /datum/element/color
-
+	var/obj/item/attached_to
 
 /datum/element/color/Attach(datum/target)
 	if(!isobj(target))
 		return ELEMENT_INCOMPATIBLE
+	attached_to = target
+	RegisterSignal(attached_to, COMSIG_PARENT_ATTACKBY, .proc/_attackby)
 	. = ..()
-	RegisterSignal(target, COMSIG_PARENT_ATTACKBY, .proc/_attackby)
 
 /datum/element/color/Detach(datum/source, force)
 	UnregisterSignal(source, list(
@@ -21,7 +22,7 @@
 	if(!istype(attacked_by, /obj/item/facepaint))
 		return
 
-	var/colors = source.color_list
+	var/colors = attached_to.color_list
 	var/obj/item/facepaint/paint = attacked_by
 	if(paint.uses < 1)
 		to_chat(attacker, "<span class='warning'>\the [paint] is out of color!</span>")
@@ -30,7 +31,7 @@
 	INVOKE_ASYNC(src, .proc/attackby, source, paint, attacker, colors, params)
 	return COMPONENT_NO_AFTERATTACK
 
-/datum/element/color/proc/attackby(obj/source, obj/item/attacked_by, mob/attacker, var/colors, params) 
+/datum/element/color/proc/attackby(obj/source, obj/item/attacked_by, mob/attacker, colors, params) 
 
 	var/obj/item/facepaint/paint = attacked_by
 	var/new_color = tgui_input_list(attacker, "Pick a color", "Pick color", colors)
