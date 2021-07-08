@@ -394,6 +394,17 @@
 	update_icon()
 	return TRUE
 
+/obj/machinery/deployable/sentry/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone)
+	if(knocked_down)
+		return .. ()
+	visible_message("<span class='danger'>The [name] is knocked over!</span>")
+	knocked_down = TRUE
+	density = FALSE
+	toggle_on()
+	sentry_alert(SENTRY_ALERT_FALLEN)
+	update_icon_state()
+	return ..()
+
 /obj/machinery/computer/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone) //Break open the machine
 	set_disabled() //Currently only computers use this; falcon punch away its density
 	return ..()
