@@ -19,9 +19,10 @@
 	var/knockdown_threshold = 150
 	var/turret_flags
 
+	var/mob/living/target
+
 	var/last_alert = 0
 	var/last_damage_alert = 0
-	var/list/obj/alert_list = list()
 	var/obj/item/radio/radio
 
 /obj/machinery/deployable/gun/sentry/Initialize(mapload, _internal_item)
@@ -55,7 +56,6 @@
 		visible_message("<span class='notice'>The [name] powers down and goes silent.</span>")
 		DISABLE_BITFIELD(turret_flags, TURRET_ON)
 		target = null
-		alert_list = list()
 		set_light(0)
 		update_icon_state()
 		stop_processing()
@@ -75,7 +75,6 @@
 	QDEL_NULL(camera)
 
 	target = null
-	alert_list = list()
 
 	stop_processing()
 	GLOB.marine_turrets -= src
@@ -100,8 +99,6 @@
 			notice = "<b>ALERT! [src] at: [AREACOORD_NO_Z(src)] has been destroyed!</b>"
 		if(SENTRY_ALERT_BATTERY)
 			notice = "<b>ALERT! [src]'s battery depleted at: [AREACOORD_NO_Z(src)].</b>"
-	if(mob && !(mon in alert_list))
-		alert_list.Add(mob)
 	playsound(loc, 'sound/machines/warning-buzzer.ogg', 50, FALSE)
 	radio.talk_into(src, "[notice]", FREQ_COMMON)
 	if(alert_code & SENTRY_ALERT_DAMAGE)
@@ -184,37 +181,40 @@
 		to_chat(user, "<span class='notice'>[src] only has one firemode!</span>")
 		return
 	sentry.do_toggle_firemode()
-	to_chat(user, "<span class='notice'>You switch [src]\'s firemode to [sentry.fire_mode]")
+	to_chat(user, "<span class='notice'>You switch [src]\'s firemode to [sentry.gun_firemode]")
 
 /obj/machinery/deployable/gun/sentry/process()
 
 	if(knocked_down)
-		toggle_on()
+		stop_processing()
 		return
-
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
-
-	//Clear the target list after the delay
-	if(world.time > last_alert + SENTRY_ALERT_DELAY)
-		alert_list = list()
 
 	playsound(loc, 'sound/items/detector.ogg', 25, FALSE)
 
-	var/target = get_target()
-	if(QDELETED(target) || !target)
+	addtimer(CALLBACK(src, .proc/start_fire), 1 SECONDS)
+	start_fire()
+
+/obj/machinery/deployable/gun/sentry/proc/start_fire()
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
+
+	target = get_target()
+	if(!target)
+		sentry.stop_fire()
 		return
-	
-	sentry.start_fire(src, target, loc, bypass_checks = TRUE)
+	setDir(get_dir(src, target))
+	sentry.start_fire(src, target, bypass_checks = TRUE)
 
 /obj/machinery/deployable/gun/sentry/proc/get_target()
 	var/obj/item/weapon/gun/sentry = internal_item
+
+	var/list/mob/targets = list()
 
 	var/list/turf/path = list()
 	var/turf/turf
 	var/mob/living/mob
 	
 	for(mob in oview(range, src))
-		if(mob.stat == DEAD) //No dead, robots, or incorporeal.
+		if(isdead(mob) || isobserver(mob)) //No dead, robots, or incorporeal.
 			continue
 
 		var/mob/living/carbon/human/human = mob
@@ -230,23 +230,31 @@
 
 		sentry_alert(SENTRY_ALERT_HOSTILE, mob)
 
-		if(path.len)
-			var/blocked = FALSE
-			for(turf in path)
-				if(IS_OPAQUE_TURF(turf) || turf.density && turf.throwpass == FALSE)
+		if(!path.len)
+			return
+		var/blocked = FALSE
+		for(turf in path)
+			if(IS_OPAQUE_TURF(turf) || turf.density && turf.throwpass == FALSE)
+				blocked = TRUE
+				break //LoF Broken; stop checking; we can't proceed further.
+	
+			for(var/obj/machinery/machinery in turf)
+				if(machinery.opacity || machinery.density && machinery.throwpass == FALSE)
 					blocked = TRUE
 					break //LoF Broken; stop checking; we can't proceed further.
 
-				for(var/obj/machinery/machinery in turf)
-					if(machinery.opacity || machinery.density && machinery.throwpass == FALSE)
-						blocked = TRUE
-						break //LoF Broken; stop checking; we can't proceed further.
+			for(var/obj/structure/structure in turf)
+				if(structure.opacity || structure.density && structure.throwpass == FALSE )
+					blocked = TRUE
+					break //LoF Broken; stop checking; we can't proceed further.
+		if(!blocked && !CHECK_BITFIELD(mob.status_flags, INCORPOREAL))
+			targets.Add(mob)
 
-				for(var/obj/structure/structure in turf)
-					if(structure.opacity || structure.density && structure.throwpass == FALSE )
-						blocked = TRUE
-						break //LoF Broken; stop checking; we can't proceed further.
-			if(!blocked && !(mob.status_flags & INCORPOREAL)) //Don't target incorporeals; we can't actually shoot them
-				return mob
+	if(target in targets)
+		return target
+
+	if(targets.len) 
+		return pick(targets)
+
 	return null
 

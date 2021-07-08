@@ -1,4 +1,8 @@
 /obj/item/weapon/gun/sentry
+	name = "\improper UA 571-C sentry gun"
+	desc = "A deployable, semi-automated turret with AI targeting capabilities. Armed with a M30 autocannon and a 500-round drum magazine."
+	icon = 'icons/Marine/miniturret.dmi'
+	icon_state = "sentry"
 
 	var/turret_flags = TURRET_HAS_CAMERA|TURRET_SAFETY|TURRET_ALERTS
 	var/knockdown_threshold = 150
@@ -11,5 +15,8 @@
 
 	fire_delay = 4
 
+	gun_iff_signal = list(ACCESS_IFF_MARINE)
+
+	gun_firemode_list = list(GUN_FIREMODE_BURSTFIRE, GUN_FIREMODE_AUTOMATIC)
 	flags_item = IS_SENTRY|TWOHANDED
 	deploy_time = 8 SECONDS

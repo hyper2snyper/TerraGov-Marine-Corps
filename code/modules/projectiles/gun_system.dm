@@ -554,8 +554,10 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 			return
 		reset_fire()
 		return
-	gun_user.client.mouse_pointer_icon = 'icons/effects/supplypod_target.dmi'
 	SEND_SIGNAL(src, COMSIG_GUN_FIRE)
+	if(!gun_user.client)
+		return
+	gun_user.client.mouse_pointer_icon = 'icons/effects/supplypod_target.dmi'
 
 ///Set the target and take care of hard delete
 /obj/item/weapon/gun/proc/set_target(atom/object)
@@ -575,7 +577,6 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 ///Reset variables used in firing and remove the gun from the autofire system
 /obj/item/weapon/gun/proc/stop_fire()
 	SIGNAL_HANDLER
-	gun_user.client.mouse_pointer_icon = initial(gun_user.client.mouse_pointer_icon)
 	if(windup_checked != WEAPON_WINDUP_CHECKING && !CHECK_BITFIELD(flags_gun_features, GUN_BURST_FIRING))
 		reset_fire()
 	SEND_SIGNAL(src, COMSIG_GUN_STOP_FIRE)
@@ -586,6 +587,8 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 	set_target(null)
 	windup_checked = WEAPON_WINDUP_NOT_CHECKED
 	dual_wield = FALSE
+	if(!gun_user.client)
+		return
 	gun_user.client.mouse_pointer_icon = initial(gun_user.client.mouse_pointer_icon)
 
 ///Inform the gun if he is currently bursting, to prevent reloading
