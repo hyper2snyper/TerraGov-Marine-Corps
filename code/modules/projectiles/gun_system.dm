@@ -555,7 +555,7 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 		reset_fire()
 		return
 	SEND_SIGNAL(src, COMSIG_GUN_FIRE)
-	if(!gun_user.client)
+	if(!gun_user || !gun_user.client)
 		return
 	gun_user.client.mouse_pointer_icon = 'icons/effects/supplypod_target.dmi'
 
@@ -587,7 +587,7 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 	set_target(null)
 	windup_checked = WEAPON_WINDUP_NOT_CHECKED
 	dual_wield = FALSE
-	if(!gun_user.client)
+	if(!gun_user || !gun_user.client)
 		return
 	gun_user.client.mouse_pointer_icon = initial(gun_user.client.mouse_pointer_icon)
 
@@ -688,7 +688,7 @@ and you're good to go.
 //----------------------------------------------------------
 
 /obj/item/weapon/gun/proc/Fire()
-	if(QDELETED(gun_user) || !ismob(gun_user) || !target || (!CHECK_BITFIELD(flags_item, IS_DEPLOYED) && !able_to_fire(gun_user)))
+	if(!target)
 		return
 
 	//The gun should return the bullet that it already loaded from the end cycle of the last Fire().
@@ -709,9 +709,9 @@ and you're good to go.
 		return
 
 
-	play_fire_sound(gun_user)
+	play_fire_sound(loc)
 	muzzle_flash(firing_angle, loc)
-	simulate_recoil(dual_wield, gun_user)
+	simulate_recoil(dual_wield, loc)
 
 	//This is where the projectile leaves the barrel and deals with projectile code only.
 	//vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -895,21 +895,22 @@ and you're good to go.
 	if(active_attachable?.attachment_firing_delay && active_attachable.flags_attach_features & ATTACH_PROJECTILE)
 		added_delay = active_attachable.attachment_firing_delay
 	else
-		if(!user.skills.getRating("firearms")) //no training in any firearms
-			added_delay += 3 //untrained humans fire more slowly.
-		else
-			switch(gun_skill_category)
-				if(GUN_SKILL_HEAVY_WEAPONS)
-					if(fire_delay > 1 SECONDS) //long delay to fire
-						added_delay = max(fire_delay - 3 * user.skills.getRating(gun_skill_category), 6)
-				if(GUN_SKILL_SMARTGUN)
-					if(user.skills.getRating(gun_skill_category) < 0)
-						added_delay -= 2 * user.skills.getRating(gun_skill_category)
+		if(user)
+			if(!user.skills.getRating("firearms")) //no training in any firearms
+				added_delay += 3 //untrained humans fire more slowly.
+			else
+				switch(gun_skill_category)
+					if(GUN_SKILL_HEAVY_WEAPONS)
+						if(fire_delay > 1 SECONDS) //long delay to fire
+							added_delay = max(fire_delay - 3 * user.skills.getRating(gun_skill_category), 6)
+					if(GUN_SKILL_SMARTGUN)
+						if(user.skills.getRating(gun_skill_category) < 0)
+							added_delay -= 2 * user.skills.getRating(gun_skill_category)
 
 	if(world.time >= last_fired + added_delay + extra_delay) //check the last time it was fired.
 		return FALSE
 
-	if(world.time % 3 && user.client && !user.client.prefs.mute_self_combat_messages)
+	if(world.time % 3 && user && user.client && !user.client.prefs.mute_self_combat_messages)
 		to_chat(user, "<span class='warning'>[src] is not ready to fire again!</span>")
 	return TRUE
 

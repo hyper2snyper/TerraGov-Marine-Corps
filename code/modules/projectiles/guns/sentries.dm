@@ -4,6 +4,8 @@
 	icon = 'icons/Marine/miniturret.dmi'
 	icon_state = "sentry"
 
+	max_integrity = 200
+
 	var/turret_flags = TURRET_HAS_CAMERA|TURRET_SAFETY|TURRET_ALERTS
 	var/knockdown_threshold = 150
 	var/range = 7
@@ -13,10 +15,11 @@
 	burst_amount = 5
 	burst_delay = 2
 
-	fire_delay = 4
+	fire_delay = 2
+	scatter = 5
 
 	gun_iff_signal = list(ACCESS_IFF_MARINE)
 
-	gun_firemode_list = list(GUN_FIREMODE_BURSTFIRE, GUN_FIREMODE_AUTOMATIC)
+	gun_firemode_list = list(GUN_FIREMODE_SEMIAUTO, GUN_FIREMODE_BURSTFIRE, GUN_FIREMODE_AUTOMATIC)
 	flags_item = IS_SENTRY|TWOHANDED
 	deploy_time = 8 SECONDS

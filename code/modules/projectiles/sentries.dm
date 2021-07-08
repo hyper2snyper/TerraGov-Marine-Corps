@@ -31,6 +31,7 @@
 	if(!istype(internal_item, /obj/item/weapon/gun/sentry))
 		CRASH("[sentry] has been deployed, however it is incompatible because it is not of type '/obj/item/weapon/gun/sentry")
 
+	sentry.set_gun_user(null)
 	turret_flags = sentry.turret_flags
 	knockdown_threshold = sentry.knockdown_threshold
 	range = sentry.range
@@ -184,25 +185,34 @@
 	to_chat(user, "<span class='notice'>You switch [src]\'s firemode to [sentry.gun_firemode]")
 
 /obj/machinery/deployable/gun/sentry/process()
-
+	
 	if(knocked_down)
 		stop_processing()
 		return
-
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
 	playsound(loc, 'sound/items/detector.ogg', 25, FALSE)
 
-	addtimer(CALLBACK(src, .proc/start_fire), 1 SECONDS)
-	start_fire()
+	var/fire_delay = sentry.fire_delay
+	if(sentry.gun_firemode == GUN_FIREMODE_BURSTFIRE)
+		fire_delay += sentry.extra_delay
+	if(fire_delay >= 2 SECONDS)
+		fire_delay = 2 SECONDS
+
+	var/checks_per_proccess = round(2 SECONDS / fire_delay, 1)
+
+	for(var/check = 1, check < checks_per_proccess, check++)
+		addtimer(CALLBACK(src, .proc/start_fire), fire_delay*check)
 
 /obj/machinery/deployable/gun/sentry/proc/start_fire()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 
-	target = get_target()
-	if(!target)
+	var/new_target = get_target()
+	if(!new_target)
 		sentry.stop_fire()
 		return
 	setDir(get_dir(src, target))
 	sentry.start_fire(src, target, bypass_checks = TRUE)
+	update_icon_state()
 
 /obj/machinery/deployable/gun/sentry/proc/get_target()
 	var/obj/item/weapon/gun/sentry = internal_item
