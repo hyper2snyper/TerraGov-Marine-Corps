@@ -158,11 +158,14 @@
 
 	setup_firemodes()
 	AddComponent(/datum/component/automatedfire/autofire, fire_delay, burst_delay, burst_amount, gun_firemode, CALLBACK(src, .proc/set_bursting), CALLBACK(src, .proc/reset_fire), CALLBACK(src, .proc/Fire)) //This should go after handle_starting_attachment() and setup_firemodes() to get the proper values set.
+	
+	muzzle_flash = new(src, muzzleflash_iconstate)
 
 	if(flags_item & IS_DEPLOYABLE)
-		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/mounted, deploy_time)
+		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/gun/mounted, deploy_time)
 
-	muzzle_flash = new(src, muzzleflash_iconstate)
+	if(flags_item & IS_SENTRY)
+		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/gun/sentry, deploy_time)
 
 
 //Hotfix for attachment offsets being set AFTER the core New() proc. Causes a small graphical artifact when spawning, hopefully works even with lag

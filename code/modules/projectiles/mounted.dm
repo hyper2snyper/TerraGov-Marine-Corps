@@ -1,17 +1,16 @@
 //Machine to hold a deployed gun. It aquired nearly all of its variables from the gun itself.
-/obj/machinery/deployable/mounted
+/obj/machinery/deployable/gun
 
 	anchored = TRUE
 	resistance_flags = XENO_DAMAGEABLE
 	density = TRUE
 	layer = ABOVE_MOB_LAYER
 	use_power = FALSE
-	max_integrity = 100
 	soft_armor = list("melee" = 0, "bullet" = 50, "laser" = 0, "energy" = 0, "bomb" = 0, "bio" = 100, "rad" = 0, "fire" = 0, "acid" = 0)
 	hud_possible = list(MACHINE_HEALTH_HUD, SENTRY_AMMO_HUD)
 
 ///generates the icon based on how much ammo it has.
-/obj/machinery/deployable/mounted/update_icon_state(mob/user)
+/obj/machinery/deployable/gun/update_icon_state(mob/user)
 	. = ..()
 	var/obj/item/weapon/gun/gun = internal_item
 	if(!gun.current_mag)
@@ -20,7 +19,7 @@
 		icon_state = default_icon_state
 	hud_set_gun_ammo()
 
-/obj/machinery/deployable/mounted/Initialize(mapload, _internal_item)
+/obj/machinery/deployable/gun/Initialize(mapload, _internal_item)
 	. = ..()
 	if(!istype(internal_item, /obj/item/weapon/gun))
 		CRASH("[internal_item] was attempted to be deployed within the type /obj/machinery/deployable/mounted without being a gun]")
@@ -30,9 +29,46 @@
 	if(istype(new_gun.current_mag, /obj/item/ammo_magazine/internal) || istype(new_gun, /obj/item/weapon/gun/launcher))
 		CRASH("[new_gun] has been deployed, however it is incompatible because of either an internal magazine, or it is a launcher.")
 
+/obj/machinery/deployable/gun/attackby(obj/item/I, mob/user, params) //This handles reloading the gun, if its in acid cant touch it.
+	. = ..()
+
+	if(!ishuman(user))
+		return
+
+	for(var/obj/effect/xenomorph/acid/A in loc)
+		if(A.acid_t == src)
+			to_chat(user, "You can't get near that, it's melting!")
+			return
+
+	reload(user, I)
+
+/obj/machinery/deployable/gun/proc/reload(mob/user, ammo_magazine)
+	if(!istype(ammo_magazine, /obj/item/ammo_magazine))
+		return
+
+	var/obj/item/ammo_magazine/ammo = ammo_magazine
+	var/obj/item/weapon/gun/gun = internal_item
+	if(!istype(gun, ammo.gun_type))
+		return
+	if(ammo.current_rounds <= 0)
+		to_chat(user, "<span class='warning'>[ammo] is empty!</span>")
+		return
+
+	if(gun.current_mag)
+		gun.unload(user,0,1)
+		update_icon_state()
+
+	var/tac_reload_time = max(0.5 SECONDS, 1.5 SECONDS - user.skills.getRating("firearms") * 5)
+	if(!do_after(user, tac_reload_time, TRUE, src, BUSY_ICON_FRIENDLY))
+		return
+	
+	gun.reload(user, ammo_magazine)
+	update_icon_state()
+
+/obj/machinery/deployable/gun/mounted
 
 ///This is called when a user tries to operate the gun
-/obj/machinery/deployable/mounted/interact(mob/user)
+/obj/machinery/deployable/gun/mounted/interact(mob/user)
 	if(!ishuman(user))
 		return TRUE
 	var/mob/living/carbon/human/human_user = user
@@ -57,47 +93,8 @@
 
 	return ..()
 
-
-/obj/machinery/deployable/mounted/attackby(obj/item/I, mob/user, params) //This handles reloading the gun, if its in acid cant touch it.
-	. = ..()
-
-	if(!ishuman(user))
-		return
-
-	for(var/obj/effect/xenomorph/acid/A in loc)
-		if(A.acid_t == src)
-			to_chat(user, "You can't get near that, it's melting!")
-			return
-
-	reload(user, I)
-
-
-///Reloads gun
-/obj/machinery/deployable/mounted/proc/reload(mob/user, ammo_magazine)
-	if(!istype(ammo_magazine, /obj/item/ammo_magazine))
-		return
-
-	var/obj/item/ammo_magazine/ammo = ammo_magazine
-	var/obj/item/weapon/gun/gun = internal_item
-	if(!istype(gun, ammo.gun_type))
-		return
-	if(ammo.current_rounds <= 0)
-		to_chat(user, "<span class='warning'>[ammo] is empty!</span>")
-		return
-
-	if(gun.current_mag)
-		gun.unload(user,0,1)
-		update_icon_state()
-
-	var/tac_reload_time = max(0.5 SECONDS, 1.5 SECONDS - user.skills.getRating("firearms") * 5)
-	if(!do_after(user, tac_reload_time, TRUE, src, BUSY_ICON_FRIENDLY))
-		return
-	
-	gun.reload(user, ammo_magazine)
-	update_icon_state()
-
 ///Sets the user as manning the internal gun
-/obj/machinery/deployable/mounted/on_set_interaction(mob/user)
+/obj/machinery/deployable/gun/mounted/on_set_interaction(mob/user)
 	operator = user
 
 	. = ..()
@@ -120,7 +117,7 @@
 
 
 ///Begins the Firing Process, does custom checks before calling the guns start_fire()
-/obj/machinery/deployable/mounted/proc/start_fire(datum/source, atom/object, turf/location, control, params)
+/obj/machinery/deployable/gun/mounted/proc/start_fire(datum/source, atom/object, turf/location, control, params)
 	SIGNAL_HANDLER
 
 	var/obj/item/weapon/gun/gun = internal_item
@@ -138,7 +135,7 @@
 	gun.start_fire(source, target, location, control, params, TRUE)
 
 ///Happens when you drag the mouse.
-/obj/machinery/deployable/mounted/proc/change_target(datum/source, atom/src_object, atom/over_object, turf/src_location, turf/over_location, src_control, over_control, params)
+/obj/machinery/deployable/gun/mounted/proc/change_target(datum/source, atom/src_object, atom/over_object, turf/src_location, turf/over_location, src_control, over_control, params)
 	SIGNAL_HANDLER
 	over_object = get_turf_on_clickcatcher(over_object, operator)
 
@@ -150,7 +147,7 @@
 	gun.change_target(source, src_object, over_object, src_location, over_location, src_control, over_control, params)
 
 ///Checks if you can fire
-/obj/machinery/deployable/mounted/proc/can_fire(atom/object)
+/obj/machinery/deployable/gun/mounted/proc/can_fire(atom/object)
 	if(!object)
 		return FALSE
 	if(operator.lying_angle || !Adjacent(operator) || operator.incapacitated() || get_step(src, REVERSE_DIR(dir)) != operator.loc)
@@ -202,7 +199,7 @@
 
 
 ///Unsets the user from manning the internal gun
-/obj/machinery/deployable/mounted/on_unset_interaction(mob/user)
+/obj/machinery/deployable/gun/mounted/on_unset_interaction(mob/user)
 	if(!operator)
 		return
 
@@ -231,6 +228,6 @@
 	gun?.set_gun_user(null)
 
 ///makes sure you can see and or use the gun
-/obj/machinery/deployable/mounted/check_eye(mob/user)
+/obj/machinery/deployable/gun/mounted/check_eye(mob/user)
 	if(user.lying_angle || !Adjacent(user) || user.incapacitated() || !user.client)
 		user.unset_interaction()
