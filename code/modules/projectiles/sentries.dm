@@ -129,23 +129,24 @@
 	return ..()
 
 /obj/machinery/deployable/gun/sentry/take_damage(damage_amount, damage_type, damage_flag, effects, attack_dir, armour_penetration)
-	if(knocked_down || damage_amount <= 0 || CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE))
+	if(knocked_down || damage_amount <= 0)
 		return
 	if(prob(10))
 		spark_system.start()
-	if(damage_amount <= knockdown_threshold) //Knockdown is certain if we deal this much in one hit; no more RNG nonsense, the fucking thing is bolted.
+	if(damage_amount >= knockdown_threshold) //Knockdown is certain if we deal this much in one hit; no more RNG nonsense, the fucking thing is bolted.
+		visible_message("<span class='danger'>The [name] is knocked over!</span>")
+		knocked_down = TRUE
+		density = FALSE
+		toggle_on()
+		sentry_alert(SENTRY_ALERT_FALLEN)
+		update_icon_state()
 		return
-	visible_message("<span class='danger'>The [name] is knocked over!</span>")
-	knocked_down = TRUE
-	density = FALSE
-	toggle_on()
-	sentry_alert(SENTRY_ALERT_FALLEN)
 
 	. = ..()
 
 	sentry_alert(SENTRY_ALERT_DAMAGE)
 
-	hud_set_machine_health() //Update our HUD health
+	update_icon_state()
 
 /obj/machinery/deployable/gun/sentry/ex_act(severity)
 	switch(severity)
@@ -174,7 +175,7 @@
 		user.visible_message("<span class='notice'>[user] sets [src] upright.</span>",
 		"<span class='notice'>You set [src] upright.</span>")
 		knocked_down = FALSE
-		update_icon()
+		update_icon_state()
 		return
 	
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
@@ -206,11 +207,10 @@
 /obj/machinery/deployable/gun/sentry/proc/start_fire()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 
-	var/new_target = get_target()
-	if(!new_target)
+	target = get_target()
+	if(!target)
 		sentry.stop_fire()
 		return
-	setDir(get_dir(src, target))
 	sentry.start_fire(src, target, bypass_checks = TRUE)
 	update_icon_state()
 
@@ -224,7 +224,7 @@
 	var/mob/living/mob
 	
 	for(mob in oview(range, src))
-		if(isdead(mob) || isobserver(mob)) //No dead, robots, or incorporeal.
+		if(isdead(mob) || isobserver(mob) || mob.stat == DEAD)
 			continue
 
 		var/mob/living/carbon/human/human = mob

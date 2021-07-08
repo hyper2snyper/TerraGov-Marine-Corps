@@ -16,7 +16,9 @@
 	burst_delay = 2
 
 	fire_delay = 2
-	scatter = 5
+	scatter = 0
+	scatter_unwielded = 0
+	burst_scatter_mult = 0
 
 	gun_iff_signal = list(ACCESS_IFF_MARINE)
 

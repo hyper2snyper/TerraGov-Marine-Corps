@@ -603,6 +603,8 @@ User can be passed as null, (a gun reloading itself for instance), so we need to
 /obj/item/weapon/gun/proc/change_target(datum/source, atom/src_object, atom/over_object, turf/src_location, turf/over_location, src_control, over_control, params)
 	SIGNAL_HANDLER
 	set_target(get_turf_on_clickcatcher(over_object, gun_user, params))
+	if(!gun_user)
+		return
 	gun_user.face_atom(target)
 
 /*
@@ -725,9 +727,9 @@ and you're good to go.
 
 	last_fired = world.time
 	reload_into_chamber(gun_user)
+	if(!gun_user || !gun_user.client)
+		return
 	SEND_SIGNAL(gun_user, COMSIG_MOB_GUN_FIRED, target, src)
-
-
 	var/obj/screen/ammo/A = gun_user.hud_used.ammo //The ammo HUD
 	A.update_hud(gun_user, src)
 
@@ -1024,7 +1026,7 @@ and you're good to go.
 			else
 				. += burst_amount * burst_scatter_mult * 5
 
-	if(!user.skills.getRating("firearms")) //no training in any firearms
+	if(user || !user.skills.getRating("firearms")) //no training in any firearms
 		. += 15
 	else
 		var/scatter_tweak = user.skills.getRating(gun_skill_category)
