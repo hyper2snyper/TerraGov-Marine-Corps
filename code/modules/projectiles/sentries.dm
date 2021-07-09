@@ -51,6 +51,73 @@
 	GLOB.marine_turrets += src
 	toggle_on()
 
+
+/obj/machinery/deployable/gun/sentry/attack_hand(mob/living/user)
+	. = ..()
+	if(.)
+		return
+
+	if(CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE))
+		to_chat(user, "<span class='warning'>[src]'s panel is completely locked, you can't do anything.</span>")
+		return
+	user.set_interaction(src)
+	ui_interact(user)
+
+
+
+/obj/machinery/deployable/gun/sentry/ui_interact(mob/user, datum/tgui/ui)
+	ui = SStgui.try_update_ui(user, src, ui)
+
+	if(!ui)
+		ui = new(user, src, "Mini Sentry", "Mini Sentry Gun")
+		ui.open()
+
+/obj/machinery/deployable/gun/sentry/ui_data(mob/user)
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
+	. = list(
+		"name" = copytext(src.name, 2),
+		"rounds" = sentry.current_mag.current_rounds,
+		"rounds_max" = sentry.current_mag.max_rounds,
+		"health" = obj_integrity,
+		"health_max" = max_integrity,
+		"dir" = dir,
+		"fire_mode" = sentry.gun_firemode,
+		"burst_size" = sentry.burst_amount,
+		"alerts_on" = CHECK_BITFIELD(turret_flags, TURRET_ALERTS),
+	)
+
+/obj/machinery/deployable/gun/sentry/ui_act(action, list/params)
+	. = ..()
+	if(.)
+		return
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
+	var/mob/living/carbon/human/user = usr
+	if(!istype(user))
+		return
+
+	switch(action)
+
+		if("burst")
+			if(CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || knocked_down)
+				return
+			if(sentry.gun_firemode_list.len <= 1)
+				to_chat(operator, "<span class='notice'>[src] only has one firemode!</span>")
+				return
+			sentry.do_toggle_firemode()
+			to_chat(operator, "<span class='notice'>You switch [src]\'s firemode to [sentry.gun_firemode]")
+			. = TRUE
+
+		if("toggle_alert")
+			TOGGLE_BITFIELD(turret_flags, TURRET_ALERTS)
+			var/alert = CHECK_BITFIELD(turret_flags, TURRET_ALERTS)
+			user.visible_message("<span class='notice'>[user] [alert ? "" : "de"]activates [src]'s alert notifications.</span>",
+			"<span class='notice'>You [alert ? "" : "de"]activate [src]'s alert notifications.</span>")
+			visible_message("<span class='notice'>The [name] buzzes in a monotone voice: 'Alert notification system [alert ? "initiated" : "deactivated"]'.</span>")
+			update_icon()
+			. = TRUE
+
+	attack_hand(user)
+
 /obj/machinery/deployable/gun/sentry/proc/toggle_on()
 
 	if(CHECK_BITFIELD(turret_flags, TURRET_ON))
@@ -207,24 +274,35 @@
 /obj/machinery/deployable/gun/sentry/proc/start_fire()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 
-	target = get_target()
-	if(!target)
+	var/new_target = get_target()
+
+	if(!new_target)
+		target = new_target
 		sentry.stop_fire()
 		return
+
+	if((sentry.gun_firemode == GUN_FIREMODE_AUTOMATIC || sentry.gun_firemode == GUN_FIREMODE_AUTOBURST))
+		if(target == new_target)
+			return
+		sentry.stop_fire()
+
+	target = new_target
 	sentry.start_fire(src, target, bypass_checks = TRUE)
-	update_icon_state()
 
 /obj/machinery/deployable/gun/sentry/proc/get_target()
 	var/obj/item/weapon/gun/sentry = internal_item
-
-	var/list/mob/targets = list()
+	var/list/mob/potential_targets = view(range, src)
 
 	var/list/turf/path = list()
 	var/turf/turf
-	var/mob/living/mob
-	
-	for(mob in oview(range, src))
-		if(isdead(mob) || isobserver(mob) || mob.stat == DEAD)
+
+	var/list/mob/targets = list()
+
+	if(!view.len)
+		return null
+
+	for(var/mob/living/mob AS in potential_targets)
+		if(!istype(mob) || mob.stat == DEAD)
 			continue
 
 		var/mob/living/carbon/human/human = mob
@@ -257,7 +335,7 @@
 				if(structure.opacity || structure.density && structure.throwpass == FALSE )
 					blocked = TRUE
 					break //LoF Broken; stop checking; we can't proceed further.
-		if(!blocked && !CHECK_BITFIELD(mob.status_flags, INCORPOREAL))
+		if(!blocked)
 			targets.Add(mob)
 
 	if(target in targets)
@@ -267,4 +345,3 @@
 		return pick(targets)
 
 	return null
-

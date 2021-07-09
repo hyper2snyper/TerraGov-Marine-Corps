@@ -394,7 +394,7 @@
 	update_icon()
 	return TRUE
 
-/obj/machinery/deployable/sentry/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone)
+/obj/machinery/deployable/gun/sentry/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone)
 	if(knocked_down)
 		return .. ()
 	visible_message("<span class='danger'>The [name] is knocked over!</span>")
