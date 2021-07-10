@@ -340,6 +340,19 @@
 	icon_state_mini = "mag_sniper"
 
 //-------------------------------------------------------
+//T-Gewehr ammo box
+/obj/item/ammo_magazine/rifle/tgewehr
+	name = "13.2mm TuF ammo box"
+	desc = ""
+	caliber = CALIBER_13P2MM_TUF
+	icon_state = "tgun"
+
+	default_ammo = /datum/ammo/bullet/sniper/tgewehr
+	max_rounds = 5
+	gun_type = /obj/item/weapon/gun/rifle/tgewehr
+	icon_state_mini = "mag_gpmg"
+
+//-------------------------------------------------------
 //Marine magazine automatic sniper, or the T-81.
 /obj/item/ammo_magazine/rifle/autosniper
 	name = "\improper T-81 automatic sniper rifle magazine"

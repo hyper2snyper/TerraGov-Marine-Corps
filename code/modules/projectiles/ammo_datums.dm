@@ -930,6 +930,14 @@ datum/ammo/bullet/revolver/tp44
 /datum/ammo/bullet/sniper/martini/on_hit_mob(mob/M, obj/projectile/P)
 	staggerstun(M, P, weaken = 1, stagger = 1, knockback = 2, slowdown = 0.5, max_range = 5)
 
+/datum/ammo/bullet/sniper/tgewehr
+	name = "armor piercing sniper bullet"
+	hud_state = "sniper_empty"
+	flags_ammo_behavior = AMMO_BALLISTIC|AMMO_SUNDERING|AMMO_SNIPER
+	damage = 200
+	penetration = 50
+	sundering = 50
+
 /datum/ammo/bullet/sniper/elite
 	name = "supersonic sniper bullet"
 	hud_state = "sniper_supersonic"

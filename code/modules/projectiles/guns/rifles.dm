@@ -1132,6 +1132,42 @@
 	wield_delay = 1.3 SECONDS
 
 //-------------------------------------------------------
+//T-Gewehr
+/obj/item/weapon/gun/rifle/tgewehr
+	name = "Mauser 1918 T-Gewehr"
+	desc = ""
+	icon = "icons/Marine/gun64_deployable.dmi"
+	icon_state = "tgun"
+	item_state = "tgun"
+	fire_sound = 'sound/weapons/guns/fire/tl127.ogg'
+	fire_rattle = 'sound/weapons/guns/fire/tl127_low.ogg'
+	dry_fire_sound = 'sound/weapons/guns/fire/sniper_empty.ogg'
+	unload_sound = 'sound/weapons/guns/interact/m41a_unload.ogg'
+	reload_sound = 'sound/weapons/guns/interact/m41a_reload.ogg'
+	caliber = CALIBER_13P2MM_TUF
+	max_shells = 5
+	current_mag = /obj/item/ammo_magazine/sniper/tgewehr
+	type_of_casings = "cartridge"
+	attachable_allowed = list(
+		/obj/item/attachable/scope/marine,
+		/obj/item/attachable/bayonet,
+		/obj/item/attachable/bayonetknife,
+	)
+	flags_item = IS_DEPLOYABLE|TWOHANDED
+	flags_gun_features = GUN_AUTO_EJECTOR|GUN_AMMO_COUNTER|GUN_DEPLOYED_FIRE_ONLY|GUN_WIELDED_FIRING_ONLY
+	gun_firemode_list = list(GUN_FIREMODE_SEMIAUTO)
+	attachable_offset = list("muzzle_x" = 48, "muzzle_y" = 18,"rail_x" = 23, "rail_y" = 23, "under_x" = 37, "under_y" = 16, "stock_x" = 9, "stock_y" = 12)
+
+	burst_amount = 0
+	fire_delay = 3 SECONDS
+	accuracy_mult = 1.35
+	accuracy_mult_unwielded = 0.7
+	scatter = -30
+	scatter_unwielded = 40
+	recoil = 0
+	recoil_unwielded = 4
+
+//-------------------------------------------------------
 //TX-11 Rifle, based on the gamer-11
 
 /obj/item/weapon/gun/rifle/tx11
