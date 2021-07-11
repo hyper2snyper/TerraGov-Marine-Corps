@@ -348,7 +348,7 @@
 	icon_state = "tgun"
 
 	default_ammo = /datum/ammo/bullet/sniper/tgewehr
-	max_rounds = 5
+	max_rounds = 10
 	gun_type = /obj/item/weapon/gun/rifle/tgewehr
 	icon_state_mini = "mag_gpmg"
 

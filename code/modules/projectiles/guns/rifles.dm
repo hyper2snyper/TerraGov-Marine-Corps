@@ -1136,7 +1136,7 @@
 /obj/item/weapon/gun/rifle/tgewehr
 	name = "Mauser 1918 T-Gewehr"
 	desc = ""
-	icon = "icons/Marine/gun64_deployable.dmi"
+	icon = 'icons/Marine/gun64.dmi'
 	icon_state = "tgun"
 	item_state = "tgun"
 	fire_sound = 'sound/weapons/guns/fire/tl127.ogg'
@@ -1145,8 +1145,8 @@
 	unload_sound = 'sound/weapons/guns/interact/m41a_unload.ogg'
 	reload_sound = 'sound/weapons/guns/interact/m41a_reload.ogg'
 	caliber = CALIBER_13P2MM_TUF
-	max_shells = 5
-	current_mag = /obj/item/ammo_magazine/sniper/tgewehr
+	max_shells = 10
+	current_mag = /obj/item/ammo_magazine/rifle/tgewehr
 	type_of_casings = "cartridge"
 	attachable_allowed = list(
 		/obj/item/attachable/scope/marine,
@@ -1159,13 +1159,15 @@
 	attachable_offset = list("muzzle_x" = 48, "muzzle_y" = 18,"rail_x" = 23, "rail_y" = 23, "under_x" = 37, "under_y" = 16, "stock_x" = 9, "stock_y" = 12)
 
 	burst_amount = 0
-	fire_delay = 3 SECONDS
+	fire_delay = 1.5 SECONDS
 	accuracy_mult = 1.35
 	accuracy_mult_unwielded = 0.7
 	scatter = -30
 	scatter_unwielded = 40
 	recoil = 0
 	recoil_unwielded = 4
+
+	deploy_time = 3 SECONDS
 
 //-------------------------------------------------------
 //TX-11 Rifle, based on the gamer-11

@@ -934,9 +934,12 @@ datum/ammo/bullet/revolver/tp44
 	name = "armor piercing sniper bullet"
 	hud_state = "sniper_empty"
 	flags_ammo_behavior = AMMO_BALLISTIC|AMMO_SUNDERING|AMMO_SNIPER
-	damage = 200
-	penetration = 50
-	sundering = 50
+	damage = 300
+	penetration = 100
+	sundering = 100
+
+datum/ammo/bullet/sniper/tgewehr/on_hit_mob(mob/M, obj/projectile/proj)
+	explosion(M, 0, 1, 1, 1, throw_range = 3)
 
 /datum/ammo/bullet/sniper/elite
 	name = "supersonic sniper bullet"
