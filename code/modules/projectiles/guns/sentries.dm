@@ -10,6 +10,8 @@
 	var/knockdown_threshold = 150
 	var/range = 7
 
+	var/obj/item/cell/lasgun/lasrifle/marine/battery
+
 	current_mag = /obj/item/ammo_magazine/sentry
 
 	burst_amount = 5
@@ -22,6 +24,6 @@
 
 	gun_iff_signal = list(ACCESS_IFF_MARINE)
 
-	gun_firemode_list = list(GUN_FIREMODE_SEMIAUTO, GUN_FIREMODE_BURSTFIRE, GUN_FIREMODE_AUTOMATIC)
+	gun_firemode_list = list(GUN_FIREMODE_SEMIAUTO)
 	flags_item = IS_SENTRY|TWOHANDED
 	deploy_time = 8 SECONDS

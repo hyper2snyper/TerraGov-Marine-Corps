@@ -1,4 +1,4 @@
-/obj/machinery/deployable/gun/sentry
+/obj/machinery/deployable/mounted/sentry
 
 	resistance_flags = UNACIDABLE|XENO_DAMAGEABLE
 	layer = ABOVE_MOB_LAYER
@@ -25,7 +25,7 @@
 	var/last_damage_alert = 0
 	var/obj/item/radio/radio
 
-/obj/machinery/deployable/gun/sentry/Initialize(mapload, _internal_item)
+/obj/machinery/deployable/mounted/sentry/Initialize(mapload, _internal_item)
 	. = ..()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 	if(!istype(internal_item, /obj/item/weapon/gun/sentry))
@@ -51,28 +51,32 @@
 	GLOB.marine_turrets += src
 	toggle_on()
 
-
-/obj/machinery/deployable/gun/sentry/attack_hand(mob/living/user)
-	. = ..()
-	if(.)
-		return
-
+/obj/machinery/deployable/mounted/sentry/attack_hand(mob/living/user)
 	if(CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE))
 		to_chat(user, "<span class='warning'>[src]'s panel is completely locked, you can't do anything.</span>")
 		return
-	user.set_interaction(src)
+
+	if(knocked_down)
+		user.visible_message("<span class='notice'>[user] begins to set [src] upright.</span>",
+		"<span class='notice'>You begin to set [src] upright.</span>")
+		if(!do_after(user, 20, TRUE, src, BUSY_ICON_BUILD))
+			return
+		user.visible_message("<span class='notice'>[user] sets [src] upright.</span>",
+		"<span class='notice'>You set [src] upright.</span>")
+		knocked_down = FALSE
+		update_icon_state()
+		return
+
 	ui_interact(user)
 
-
-
-/obj/machinery/deployable/gun/sentry/ui_interact(mob/user, datum/tgui/ui)
+/obj/machinery/deployable/mounted/sentry/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
 
 	if(!ui)
-		ui = new(user, src, "Mini Sentry", "Mini Sentry Gun")
+		ui = new(user, src, "Sentry", "Sentry Gun")
 		ui.open()
 
-/obj/machinery/deployable/gun/sentry/ui_data(mob/user)
+/obj/machinery/deployable/mounted/sentry/ui_data(mob/user)
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 	. = list(
 		"name" = copytext(src.name, 2),
@@ -80,13 +84,17 @@
 		"rounds_max" = sentry.current_mag.max_rounds,
 		"health" = obj_integrity,
 		"health_max" = max_integrity,
+		"has_cell" = (sentry.battery ? 1 : 0),
+		"cell_charge" = sentry.battery ? sentry.battery.charge : 0,
+		"cell_maxcharge" = sentry.battery ? sentry.battery.maxcharge : 0,
 		"dir" = dir,
-		"fire_mode" = sentry.gun_firemode,
-		"burst_size" = sentry.burst_amount,
+		"safety_toggle" = CHECK_BITFIELD(turret_flags, TURRET_SAFETY),
+		"manual_override" = CHECK_BITFIELD(turret_flags, TURRET_MANUAL),
 		"alerts_on" = CHECK_BITFIELD(turret_flags, TURRET_ALERTS),
+		"radial_mode" = CHECK_BITFIELD(turret_flags, TURRET_RADIAL),
 	)
 
-/obj/machinery/deployable/gun/sentry/ui_act(action, list/params)
+/obj/machinery/deployable/mounted/sentry/ui_act(action, list/params)
 	. = ..()
 	if(.)
 		return
@@ -97,14 +105,19 @@
 
 	switch(action)
 
-		if("burst")
+		if("safety")
 			if(CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || knocked_down)
 				return
-			if(sentry.gun_firemode_list.len <= 1)
-				to_chat(operator, "<span class='notice'>[src] only has one firemode!</span>")
-				return
-			sentry.do_toggle_firemode()
-			to_chat(operator, "<span class='notice'>You switch [src]\'s firemode to [sentry.gun_firemode]")
+
+			TOGGLE_BITFIELD(turret_flags, TURRET_SAFETY)
+			var/safe = CHECK_BITFIELD(turret_flags, TURRET_SAFETY)
+			user.visible_message("<span class='warning'>[user] [safe ? "" : "de"]activates [src]'s safety lock.</span>",
+			"<span class='warning'>You [safe ? "" : "de"]activate [src]'s safety lock.</span>")
+			visible_message("<span class='warning'>A red light on [src] blinks brightly!")
+			. = TRUE
+
+		if("manual") //Alright so to clean this up, fuck that manual control pop up. Its a good idea but its not working out in practice.
+			interact(user)
 			. = TRUE
 
 		if("toggle_alert")
@@ -116,9 +129,16 @@
 			update_icon()
 			. = TRUE
 
+		if("toggle_radial")
+			TOGGLE_BITFIELD(turret_flags, TURRET_RADIAL)
+			var/rad_msg = CHECK_BITFIELD(turret_flags, TURRET_RADIAL) ? "activate" : "deactivate"
+			user.visible_message("<span class='notice'>[user] [rad_msg]s [src]'s radial mode.</span>", "<span class='notice'>You [rad_msg] [src]'s radial mode.</span>")
+			visible_message("The [name] buzzes in a monotone voice: 'Radial mode [rad_msg]d'.'")
+			. = TRUE
+
 	attack_hand(user)
 
-/obj/machinery/deployable/gun/sentry/proc/toggle_on()
+/obj/machinery/deployable/mounted/sentry/proc/toggle_on()
 
 	if(CHECK_BITFIELD(turret_flags, TURRET_ON))
 		visible_message("<span class='notice'>The [name] powers down and goes silent.</span>")
@@ -138,7 +158,7 @@
 	update_icon_state()
 	start_processing()
 
-/obj/machinery/deployable/gun/sentry/Destroy()
+/obj/machinery/deployable/mounted/sentry/Destroy()
 	QDEL_NULL(radio)
 	QDEL_NULL(camera)
 
@@ -148,7 +168,7 @@
 	GLOB.marine_turrets -= src
 	return ..()
 
-/obj/machinery/deployable/gun/sentry/proc/sentry_alert(alert_code, mob/mob)
+/obj/machinery/deployable/mounted/sentry/proc/sentry_alert(alert_code, mob/mob)
 	if(!alert_code || !CHECK_BITFIELD(turret_flags, TURRET_ALERTS) || (world.time < (last_alert + SENTRY_ALERT_DELAY)) || !CHECK_BITFIELD(turret_flags, TURRET_ON))
 		return
 	if(alert_code & SENTRY_ALERT_DAMAGE && !(world.time < (last_damage_alert + SENTRY_DAMAGE_ALERT_DELAY)))
@@ -174,28 +194,28 @@
 		return
 	last_alert = world.time
 
-/obj/machinery/deployable/gun/sentry/obj_destruction(damage_amount, damage_type, damage_flag)
+/obj/machinery/deployable/mounted/sentry/obj_destruction(damage_amount, damage_type, damage_flag)
 	sentry_alert(SENTRY_ALERT_DESTROYED)
 	return ..()
 
-/obj/machinery/deployable/gun/sentry/update_icon_state()
+/obj/machinery/deployable/mounted/sentry/update_icon_state()
 	. = ..()
 	if(!knocked_down)
 		return
 	icon_state += "_f"
 
-/obj/machinery/deployable/gun/sentry/update_overlays()
+/obj/machinery/deployable/mounted/sentry/update_overlays()
 	. = ..()
 	if(!CHECK_BITFIELD(turret_flags, TURRET_ON))
 		return
 	. += image('icons/Marine/sentry.dmi', src, "sentry_active")
 
-/obj/machinery/deployable/gun/sentry/deconstruct(disassembled = TRUE)
+/obj/machinery/deployable/mounted/sentry/deconstruct(disassembled = TRUE)
 	if(!disassembled)
 		explosion(loc, light_impact_range = 3)
 	return ..()
 
-/obj/machinery/deployable/gun/sentry/take_damage(damage_amount, damage_type, damage_flag, effects, attack_dir, armour_penetration)
+/obj/machinery/deployable/mounted/sentry/take_damage(damage_amount, damage_type, damage_flag, effects, attack_dir, armour_penetration)
 	if(knocked_down || damage_amount <= 0)
 		return
 	if(prob(10))
@@ -215,7 +235,7 @@
 
 	update_icon_state()
 
-/obj/machinery/deployable/gun/sentry/ex_act(severity)
+/obj/machinery/deployable/mounted/sentry/ex_act(severity)
 	switch(severity)
 		if(EXPLODE_DEVASTATE)
 			take_damage(rand(90, 150))
@@ -224,35 +244,11 @@
 		if(EXPLODE_LIGHT)
 			take_damage(rand(30, 100))
 
-/obj/machinery/deployable/gun/sentry/attack_alien(mob/living/carbon/xenomorph/X, damage_amount = X.xeno_caste.melee_damage, damage_type = BRUTE, damage_flag = "", effects = TRUE, armor_penetration = 0, isrightclick = FALSE)
+/obj/machinery/deployable/mounted/sentry/attack_alien(mob/living/carbon/xenomorph/X, damage_amount = X.xeno_caste.melee_damage, damage_type = BRUTE, damage_flag = "", effects = TRUE, armor_penetration = 0, isrightclick = FALSE)
 	SEND_SIGNAL(X, COMSIG_XENOMORPH_ATTACK_SENTRY)
 	return ..()
 
-/obj/machinery/deployable/gun/sentry/attack_hand(mob/living/user)
-
-	if(CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE))
-		to_chat(user, "<span class='warning'>[src]'s panel is completely locked, you can't do anything.</span>")
-		return
-
-	if(knocked_down)
-		user.visible_message("<span class='notice'>[user] begins to set [src] upright.</span>",
-		"<span class='notice'>You begin to set [src] upright.</span>")
-		if(!do_after(user, 20, TRUE, src, BUSY_ICON_BUILD))
-			return
-		user.visible_message("<span class='notice'>[user] sets [src] upright.</span>",
-		"<span class='notice'>You set [src] upright.</span>")
-		knocked_down = FALSE
-		update_icon_state()
-		return
-	
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
-	if(sentry.gun_firemode_list.len <= 1)
-		to_chat(user, "<span class='notice'>[src] only has one firemode!</span>")
-		return
-	sentry.do_toggle_firemode()
-	to_chat(user, "<span class='notice'>You switch [src]\'s firemode to [sentry.gun_firemode]")
-
-/obj/machinery/deployable/gun/sentry/process()
+/obj/machinery/deployable/mounted/sentry/process()
 	
 	if(knocked_down)
 		stop_processing()
@@ -269,9 +265,9 @@
 	var/checks_per_proccess = round(2 SECONDS / fire_delay, 1)
 
 	for(var/check = 1, check < checks_per_proccess, check++)
-		addtimer(CALLBACK(src, .proc/start_fire), fire_delay*check)
+		addtimer(CALLBACK(src, .proc/sentry_start_fire), fire_delay*check)
 
-/obj/machinery/deployable/gun/sentry/proc/start_fire()
+/obj/machinery/deployable/mounted/sentry/proc/sentry_start_fire()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
 
 	var/new_target = get_target()
@@ -281,15 +277,10 @@
 		sentry.stop_fire()
 		return
 
-	if((sentry.gun_firemode == GUN_FIREMODE_AUTOMATIC || sentry.gun_firemode == GUN_FIREMODE_AUTOBURST))
-		if(target == new_target)
-			return
-		sentry.stop_fire()
-
 	target = new_target
 	sentry.start_fire(src, target, bypass_checks = TRUE)
 
-/obj/machinery/deployable/gun/sentry/proc/get_target()
+/obj/machinery/deployable/mounted/sentry/proc/get_target()
 	var/obj/item/weapon/gun/sentry = internal_item
 	var/list/mob/potential_targets = view(range, src)
 
@@ -298,7 +289,7 @@
 
 	var/list/mob/targets = list()
 
-	if(!view.len)
+	if(!potential_targets.len)
 		return null
 
 	for(var/mob/living/mob AS in potential_targets)
@@ -306,7 +297,7 @@
 			continue
 
 		var/mob/living/carbon/human/human = mob
-		if(istype(human) && human.get_target_lock(sentry.gun_iff_signal))
+		if(istype(human) && (CHECK_BITFIELD(turret_flags, TURRET_SAFETY) || human.get_target_lock(sentry.gun_iff_signal)))
 			continue
 
 		var/angle = get_dir(src, mob)
@@ -322,6 +313,12 @@
 			return
 		var/blocked = FALSE
 		for(turf in path)
+
+			var/obj/effect/particle_effect/smoke/smoke = locate() in turf
+			if(smoke)
+				blocked = TRUE
+				break
+
 			if(IS_OPAQUE_TURF(turf) || turf.density && turf.throwpass == FALSE)
 				blocked = TRUE
 				break //LoF Broken; stop checking; we can't proceed further.

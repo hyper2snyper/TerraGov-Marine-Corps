@@ -162,10 +162,10 @@
 	muzzle_flash = new(src, muzzleflash_iconstate)
 
 	if(flags_item & IS_DEPLOYABLE)
-		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/gun/mounted, deploy_time)
+		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/mounted, deploy_time)
 
 	if(flags_item & IS_SENTRY)
-		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/gun/sentry, deploy_time)
+		AddElement(/datum/element/deployable_item, /obj/machinery/deployable/mounted/sentry, deploy_time)
 
 
 //Hotfix for attachment offsets being set AFTER the core New() proc. Causes a small graphical artifact when spawning, hopefully works even with lag
