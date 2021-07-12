@@ -261,8 +261,6 @@
 	if(CHECK_BITFIELD(turret_flags, TURRET_SAFETY))
 		details +=("Its safeties are on.</br>")
 
-	if(CHECK_BITFIELD(turret_flags, TURRET_MANUAL))
-		details +=("Its manual override is active.</br>")
 	else
 		details += ("It's set to [CHECK_BITFIELD(turret_flags, TURRET_RADIAL) ? "360" : "directional targeting"] mode.</br>")
 
@@ -358,169 +356,10 @@
 		return
 
 	user.set_interaction(src)
-	ui_interact(user)
-
-
-
-/obj/machinery/marine_turret/ui_interact(mob/user, datum/tgui/ui)
-	ui = SStgui.try_update_ui(user, src, ui)
-
-	if(!ui)
-		ui = new(user, src, "Sentry", "Sentry Gun")
-		ui.open()
-
-/obj/machinery/marine_turret/ui_data(mob/user)
-	. = list(
-		"name" = copytext(src.name, 2),
-		"is_on" = CHECK_BITFIELD(turret_flags, TURRET_ON),
-		"rounds" = rounds,
-		"rounds_max" = rounds_max,
-		"health" = obj_integrity,
-		"health_max" = max_integrity,
-		"has_cell" = (cell ? 1 : 0),
-		"cell_charge" = cell ? cell.charge : 0,
-		"cell_maxcharge" = cell ? cell.maxcharge : 0,
-		"dir" = dir,
-		"burst_fire" = CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE),
-		"safety_toggle" = CHECK_BITFIELD(turret_flags, TURRET_SAFETY),
-		"manual_override" = CHECK_BITFIELD(turret_flags, TURRET_MANUAL),
-		"alerts_on" = CHECK_BITFIELD(turret_flags, TURRET_ALERTS),
-		"radial_mode" = CHECK_BITFIELD(turret_flags, TURRET_RADIAL),
-		"burst_size" = burst_size,
-		"mini" = istype(src, /obj/machinery/marine_turret/mini)
-	)
-
-/obj/machinery/marine_turret/ui_act(action, list/params)
-	. = ..()
-	if(.)
-		return
-
-	var/mob/living/carbon/human/user = usr
-	if(!istype(user))
-		return
-
-	switch(action)
-
-		if("burst")
-			if(!cell || cell.charge <= 0 || !anchored || CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || !CHECK_BITFIELD(turret_flags, TURRET_ON) || machine_stat)
-				return
-
-			if(CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE))
-				DISABLE_BITFIELD(turret_flags, TURRET_BURSTFIRE)
-				visible_message("A green light on [src] blinks slowly.")
-				to_chat(usr, "<span class='notice'>You deactivate the burst fire mode.</span>")
-			else
-				ENABLE_BITFIELD(turret_flags, TURRET_BURSTFIRE)
-				fire_delay = burst_delay
-				user.visible_message("<span class='notice'>[user] activates [src]'s burst fire mode.</span>",
-				"<span class='notice'>You activate [src]'s burst fire mode.</span>")
-				visible_message("<span class='notice'>A green light on [src] blinks rapidly.</span>")
-			. = TRUE
-
-		if("burstup")
-			if(!cell || cell.charge <= 0 || !anchored || CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || !CHECK_BITFIELD(turret_flags, TURRET_ON) || machine_stat)
-				return
-
-			burst_size = clamp(burst_size + 1, min_burst, max_burst)
-			user.visible_message("<span class='notice'>[user] increments the [src]'s burst count.</span>",
-			"<span class='notice'>You increment [src]'s burst fire count.</span>")
-			. = TRUE
-
-		if("burstdown")
-			if(!cell || cell.charge <= 0 || !anchored || CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || !CHECK_BITFIELD(turret_flags, TURRET_ON) || machine_stat)
-				return
-
-			burst_size = clamp(burst_size - 1, min_burst, max_burst)
-			user.visible_message("<span class='notice'>[user] decrements the [src]'s burst count.</span>",
-			"<span class='notice'>You decrement [src]'s burst fire count.</span>")
-			. = TRUE
-
-		if("safety")
-			if(!cell || cell.charge <= 0 || !anchored || CHECK_BITFIELD(turret_flags, TURRET_IMMOBILE) || !CHECK_BITFIELD(turret_flags, TURRET_ON) || machine_stat)
-				return
-
-			TOGGLE_BITFIELD(turret_flags, TURRET_SAFETY)
-			var/safe = CHECK_BITFIELD(turret_flags, TURRET_SAFETY)
-			user.visible_message("<span class='warning'>[user] [safe ? "" : "de"]activates [src]'s safety lock.</span>",
-			"<span class='warning'>You [safe ? "" : "de"]activate [src]'s safety lock.</span>")
-			visible_message("<span class='warning'>A red light on [src] blinks brightly!")
-			. = TRUE
-
-		if("manual") //Alright so to clean this up, fuck that manual control pop up. Its a good idea but its not working out in practice.
-			if(!CHECK_BITFIELD(turret_flags, TURRET_MANUAL))
-				if(operator != user && operator) //Don't question this. If it has operator != user it wont fucken work. Like for some reason this does it proper.
-					to_chat(user, "<span class='warning'>Someone is already controlling [src].</span>")
-					return
-				if(!operator) //Make sure we can use it.
-					operator = user
-					user.visible_message("<span class='notice'>[user] takes manual control of [src]</span>",
-					"<span class='notice'>You take manual control of [src]</span>")
-					visible_message("<span class='warning'>The [name] buzzes: <B>WARNING!</B> MANUAL OVERRIDE INITIATED.</span>")
-					user.set_interaction(src)
-					ENABLE_BITFIELD(turret_flags, TURRET_MANUAL)
-				else
-					if(user.interactee)
-						user.visible_message("<span class='notice'>[user] lets go of [src]</span>",
-						"<span class='notice'>You let go of [src]</span>")
-						visible_message("<span class='notice'>The [name] buzzes: AI targeting re-initialized.</span>")
-						user.unset_interaction()
-					else
-						to_chat(user, "<span class='warning'>You are not currently overriding this turret.</span>")
-				if(machine_stat == 2)
-					machine_stat = 0 //Weird bug goin on here
-			else //Seems to be a bug where the manual override isn't properly deactivated; this toggle should fix that.
-				visible_message("<span class='notice'>The [name] buzzes: AI targeting re-initialized.</span>")
-				DISABLE_BITFIELD(turret_flags, TURRET_MANUAL)
-				operator = null
-				user.unset_interaction()
-			. = TRUE
-
-		if("power")
-			if(!CHECK_BITFIELD(turret_flags, TURRET_ON))
-				user.visible_message("<span class='notice'>[user] activates [src].</span>",
-				"<span class='notice'>You activate [src].</span>")
-				visible_message("<span class='notice'>The [name] hums to life and emits several beeps.</span>")
-				visible_message("<span class='notice'>The [name] buzzes in a monotone voice: 'Default systems initiated'.</span>'")
-				target = null
-				ENABLE_BITFIELD(turret_flags, TURRET_ON)
-				set_light(SENTRY_LIGHT_POWER)
-				if(!camera && CHECK_BITFIELD(turret_flags, TURRET_HAS_CAMERA))
-					camera = new /obj/machinery/camera(src)
-					camera.network = list("military")
-					camera.c_tag = src.name
-				update_icon()
-			else
-				user.visible_message("<span class='notice'>[user] deactivates [src].</span>",
-				"<span class='notice'>You deactivate [src].</span>")
-				turn_off()
-			. = TRUE
-
-		if("toggle_alert")
-			TOGGLE_BITFIELD(turret_flags, TURRET_ALERTS)
-			var/alert = CHECK_BITFIELD(turret_flags, TURRET_ALERTS)
-			user.visible_message("<span class='notice'>[user] [alert ? "" : "de"]activates [src]'s alert notifications.</span>",
-			"<span class='notice'>You [alert ? "" : "de"]activate [src]'s alert notifications.</span>")
-			visible_message("<span class='notice'>The [name] buzzes in a monotone voice: 'Alert notification system [alert ? "initiated" : "deactivated"]'.</span>")
-			update_icon()
-			. = TRUE
-
-		if("toggle_radial")
-			TOGGLE_BITFIELD(turret_flags, TURRET_RADIAL)
-			var/rad_msg = CHECK_BITFIELD(turret_flags, TURRET_RADIAL) ? "activate" : "deactivate"
-			user.visible_message("<span class='notice'>[user] [rad_msg]s [src]'s radial mode.</span>", "<span class='notice'>You [rad_msg] [src]'s radial mode.</span>")
-			visible_message("The [name] buzzes in a monotone voice: 'Radial mode [rad_msg]d'.'")
-			range = CHECK_BITFIELD(turret_flags, TURRET_RADIAL) ? 3 : 7
-			update_icon()
-			. = TRUE
-
-	attack_hand(user)
 
 //Manual override turns off automatically once the user no longer interacts with the turret.
 /obj/machinery/marine_turret/on_unset_interaction(mob/user)
 	..()
-	if(CHECK_BITFIELD(turret_flags, TURRET_MANUAL) && operator == user)
-		operator = null
-		DISABLE_BITFIELD(turret_flags, TURRET_MANUAL)
 
 /obj/machinery/marine_turret/check_eye(mob/user)
 	if(user.incapacitated() || get_dist(user, src) > 1 || is_blind(user) || user.lying_angle || !user.client)
@@ -820,9 +659,6 @@
 	if(!check_power(2))
 		return
 
-	if(operator || CHECK_BITFIELD(turret_flags, TURRET_MANUAL)) //If someone's firing it manually.
-		return
-
 	if(rounds == 0)
 		update_icon()
 		return
@@ -836,7 +672,6 @@
 	else
 		playsound(loc, 'sound/items/detector.ogg', 25, FALSE)
 
-	DISABLE_BITFIELD(turret_flags, TURRET_MANUAL)
 	target = get_target()
 	if(QDELETED(target))
 		return
@@ -865,7 +700,7 @@
 
 	if(!ammo) return
 
-	if(CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE) && target && !CHECK_BITFIELD(turret_flags, TURRET_COOLDOWN))
+	if(CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE) && target)
 		if(rounds >= burst_size)
 			ENABLE_BITFIELD(turret_flags, TURRET_BURSTFIRING)
 			for(var/i = 1 to burst_size)
@@ -873,27 +708,20 @@
 					sleep(1)
 				else
 					break
-			spawn(0)
-				ENABLE_BITFIELD(turret_flags, TURRET_COOLDOWN)
-			spawn(fire_delay)
-				DISABLE_BITFIELD(turret_flags, TURRET_COOLDOWN)
+
 		else
 			DISABLE_BITFIELD(turret_flags, TURRET_BURSTFIRE)
 		DISABLE_BITFIELD(turret_flags, TURRET_BURSTFIRING)
 
-	if(!CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE) && target && !CHECK_BITFIELD(turret_flags, TURRET_COOLDOWN))
+	if(!CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRE) && target)
 		fire_shot()
 
 	target = null
 
 /obj/machinery/marine_turret/proc/fire_shot()
-	if(!target || !CHECK_BITFIELD(turret_flags, TURRET_ON) || !ammo || CHECK_BITFIELD(turret_flags, TURRET_COOLDOWN))
+	if(!target || !CHECK_BITFIELD(turret_flags, TURRET_ON) || !ammo)
 		return
 
-	if(!CHECK_BITFIELD(turret_flags, TURRET_BURSTFIRING))
-		ENABLE_BITFIELD(turret_flags, TURRET_COOLDOWN)
-		spawn(fire_delay)
-			DISABLE_BITFIELD(turret_flags, TURRET_COOLDOWN)
 
 	var/turf/my_loc = get_turf(src)
 	var/turf/targloc = get_turf(target)
@@ -908,7 +736,7 @@
 	if( ( target_dir & turn(dir, 180) ) && !CHECK_BITFIELD(turret_flags, TURRET_RADIAL))
 		return
 
-	if(CHECK_BITFIELD(turret_flags, TURRET_RADIAL) && !CHECK_BITFIELD(turret_flags, TURRET_MANUAL))
+	if(CHECK_BITFIELD(turret_flags, TURRET_RADIAL))
 		setDir(target_dir)
 
 

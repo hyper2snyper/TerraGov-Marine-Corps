@@ -395,14 +395,8 @@
 	return TRUE
 
 /obj/machinery/deployable/mounted/sentry/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone)
-	if(knocked_down)
-		return .. ()
-	visible_message("<span class='danger'>The [name] is knocked over!</span>")
-	knocked_down = TRUE
-	density = FALSE
-	toggle_on()
-	sentry_alert(SENTRY_ALERT_FALLEN)
-	update_icon_state()
+	if(!knocked_down)
+		knock_down()
 	return ..()
 
 /obj/machinery/computer/punch_act(mob/living/carbon/xenomorph/X, damage, target_zone) //Break open the machine

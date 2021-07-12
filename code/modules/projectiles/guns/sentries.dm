@@ -27,3 +27,17 @@
 	gun_firemode_list = list(GUN_FIREMODE_SEMIAUTO)
 	flags_item = IS_SENTRY|TWOHANDED
 	deploy_time = 8 SECONDS
+
+
+/obj/item/weapon/gun/sentry/attackby(obj/item/I, mob/user, params)
+	if(istype(I, /obj/item/cell/lasgun/lasrifle/marine))
+		var/obj/item/cell/lasgun/lasrifle/marine/new_battery = I
+		if(!new_battery.charge)
+			to_chat(user, "<span class='warning'>[new_battery] is out of charge!</span>")
+			return
+		playsound(src, 'sound/weapons/guns/interact/standard_laser_rifle_reload.ogg', 10)
+		battery = new_battery
+		user.temporarilyRemoveItemFromInventory(new_battery)
+		new_battery.forceMove(src)
+		return
+	return ..()

@@ -74,7 +74,8 @@ export const Sentry = (props, context) => {
                 <Button
                   selected={data.radial_mode}
                   onClick={() => act('toggle_radial')}
-                  icon={data.radial_mode ? "check" : "times"}>
+                  icon={data.radial_mode ? "check" : "times"}
+                  disabled={!data.has_cell}>
                   Radial Mode
                 </Button>
               }
