@@ -28,6 +28,9 @@
 	///Radio so that the sentry can scream for help
 	var/obj/item/radio/radio
 
+//------------------------------------------------------------------
+//Setup and Deletion
+
 /obj/machinery/deployable/mounted/sentry/Initialize(mapload, _internal_item)
 	. = ..()
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
@@ -42,7 +45,6 @@
 	knockdown_threshold = sentry.knockdown_threshold
 	range = sentry.range
 
-
 	radio = new(src)
 
 	spark_system = new /datum/effect_system/spark_spread
@@ -55,23 +57,53 @@
 		camera.c_tag = "[name] ([rand(0, 1000)])"
 
 	GLOB.marine_turrets += src
-	toggle_on()
+	set_on(TRUE)
 
+/obj/machinery/deployable/mounted/sentry/update_icon_state()
+	. = ..()
+	if(!knocked_down)
+		return
+	icon_state += "_f"
+
+/obj/machinery/deployable/mounted/sentry/Destroy()
+	sentry_alert(SENTRY_ALERT_DESTROYED)
+
+	QDEL_NULL(radio)
+	QDEL_NULL(camera)
+
+	target = null
+
+	stop_processing()
+	GLOB.marine_turrets -= src
+	return ..()
+
+/obj/machinery/deployable/mounted/sentry/deconstruct(disassembled = TRUE)
+	if(!disassembled)
+		explosion(loc, light_impact_range = 3)
+	return ..()
+
+//-----------------------------------------------------------------
+// Interaction
 
 /obj/machinery/deployable/mounted/sentry/attackby(obj/item/I, mob/user, params)
 	if(istype(I, /obj/item/cell/lasgun/lasrifle/marine))
 		internal_item.attackby(I, user, params)
+		return
 	return ..()
+
+/obj/machinery/deployable/mounted/sentry/AltClick(mob/user)
+	. = ..()
+	internal_item.AltClick(user)
 
 /obj/machinery/deployable/mounted/sentry/on_set_interaction(mob/user)
 	. = ..()
-	toggle_on()
+	to_chat(user, "<span class='notice'>You disable the [src]'s automatic to operate it manually.</span>")
+	set_on(FALSE)
 
 /obj/machinery/deployable/mounted/sentry/on_unset_interaction(mob/user)
 	. = ..()
-	toggle_on()
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
-	sentry.do_toggle_firemode(new_firemode = GUN_FIREMODE_SEMIAUTO)
+	to_chat(user, "<span class='notice'>You stop using the [src] and its automatic functions re-activate</span>")
+	set_on(TRUE)
 
 /obj/machinery/deployable/mounted/sentry/attack_hand(mob/living/user)
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
@@ -79,22 +111,24 @@
 		to_chat(user, "<span class='warning'>[src]'s panel is completely locked, you can't do anything.</span>")
 		return
 
-	if(knocked_down)
-		user.visible_message("<span class='notice'>[user] begins to set [src] upright.</span>",
-		"<span class='notice'>You begin to set [src] upright.</span>")
-		if(!do_after(user, 20, TRUE, src, BUSY_ICON_BUILD))
-			return
-		user.visible_message("<span class='notice'>[user] sets [src] upright.</span>",
-		"<span class='notice'>You set [src] upright.</span>")
-		knocked_down = FALSE
-		toggle_on()
+	if(!knocked_down)
+		ui_interact(user)
 		return
 
-	ui_interact(user)
+	user.visible_message("<span class='notice'>[user] begins to set [src] upright.</span>",
+	"<span class='notice'>You begin to set [src] upright.</span>")
+
+	if(!do_after(user, 20, TRUE, src, BUSY_ICON_BUILD))
+		return
+
+	user.visible_message("<span class='notice'>[user] sets [src] upright.</span>",
+	"<span class='notice'>You set [src] upright.</span>")
+
+	knocked_down = FALSE
+	set_on(TRUE)
 
 /obj/machinery/deployable/mounted/sentry/ui_interact(mob/user, datum/tgui/ui)
 	ui = SStgui.try_update_ui(user, src, ui)
-
 	if(!ui)
 		ui = new(user, src, "Sentry", "Sentry Gun")
 		ui.open()
@@ -139,7 +173,7 @@
 			visible_message("<span class='warning'>A red light on [src] blinks brightly!")
 			. = TRUE
 
-		if("manual") //Alright so to clean this up, fuck that manual control pop up. Its a good idea but its not working out in practice.
+		if("manual")
 			if(operator)
 				user.unset_interaction()
 			else
@@ -164,9 +198,9 @@
 
 	attack_hand(user)
 
-/obj/machinery/deployable/mounted/sentry/proc/toggle_on()
+/obj/machinery/deployable/mounted/sentry/proc/set_on(new_state)
 	var/obj/item/weapon/gun/sentry/sentry = internal_item
-	if(CHECK_BITFIELD(sentry.turret_flags, TURRET_ON))
+	if(!new_state)
 		visible_message("<span class='notice'>The [name] powers down and goes silent.</span>")
 		DISABLE_BITFIELD(sentry.turret_flags, TURRET_ON)
 		target = null
@@ -187,63 +221,12 @@
 	visible_message("<span class='danger'>The [name] is knocked over!</span>")
 	knocked_down = TRUE
 	density = FALSE
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
-	if(CHECK_BITFIELD(sentry.turret_flags, TURRET_ON))
-		toggle_on()
+	set_on(FALSE)
 	sentry_alert(SENTRY_ALERT_FALLEN)
 	update_icon_state()
 
-/obj/machinery/deployable/mounted/sentry/Destroy()
-	QDEL_NULL(radio)
-	QDEL_NULL(camera)
-
-	target = null
-
-	stop_processing()
-	GLOB.marine_turrets -= src
-	return ..()
-
-/obj/machinery/deployable/mounted/sentry/proc/sentry_alert(alert_code, mob/mob)
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
-	if(!alert_code || !CHECK_BITFIELD(sentry.turret_flags, TURRET_ALERTS) || !CHECK_BITFIELD(sentry.turret_flags, TURRET_ON))
-		return
-	if((!CHECK_BITFIELD(alert_code, SENTRY_ALERT_DAMAGE) && (world.time < (last_alert + SENTRY_ALERT_DELAY))) || (CHECK_BITFIELD(alert_code, SENTRY_ALERT_DAMAGE) && !(world.time < (last_damage_alert + SENTRY_DAMAGE_ALERT_DELAY))) )
-		return
-
-	var/notice
-	switch(alert_code)
-		if(SENTRY_ALERT_AMMO)
-			notice = "<b>ALERT! [src]'s ammo depleted at: [AREACOORD_NO_Z(src)].</b>"
-		if(SENTRY_ALERT_HOSTILE)
-			notice = "<b>ALERT! [src] detected Hostile/Unknown: [mob.name] at: [AREACOORD_NO_Z(src)].</b>"
-		if(SENTRY_ALERT_FALLEN)
-			notice = "<b>ALERT! [src] has been knocked over at: [AREACOORD_NO_Z(src)].</b>"
-		if(SENTRY_ALERT_DAMAGE)
-			notice = "<b>ALERT! [src] has taken damage at: [AREACOORD_NO_Z(src)]. Remaining Structural Integrity: ([obj_integrity]/[max_integrity])[obj_integrity < 50 ? " CONDITION CRITICAL!!" : ""]</b>"
-		if(SENTRY_ALERT_DESTROYED)
-			notice = "<b>ALERT! [src] at: [AREACOORD_NO_Z(src)] has been destroyed!</b>"
-		if(SENTRY_ALERT_BATTERY)
-			notice = "<b>ALERT! [src]'s battery depleted at: [AREACOORD_NO_Z(src)].</b>"
-	playsound(loc, 'sound/machines/warning-buzzer.ogg', 50, FALSE)
-	radio.talk_into(src, "[notice]", FREQ_COMMON)
-	if(alert_code & SENTRY_ALERT_DAMAGE)
-		last_damage_alert = world.time
-		return
-	last_alert = world.time
-
-/obj/machinery/deployable/mounted/sentry/obj_destruction(damage_amount, damage_type, damage_flag)
-	sentry_alert(SENTRY_ALERT_DESTROYED)
-	return ..()
-
-/obj/machinery/deployable/mounted/sentry/update_icon_state()
-	. = ..()
-	if(!knocked_down)
-		return
-	icon_state += "_f"
-
-/obj/machinery/deployable/mounted/sentry/deconstruct(disassembled = TRUE)
-	if(!disassembled)
-		explosion(loc, light_impact_range = 3)
+/obj/machinery/deployable/mounted/sentry/attack_alien(mob/living/carbon/xenomorph/X, damage_amount = X.xeno_caste.melee_damage, damage_type = BRUTE, damage_flag = "", effects = TRUE, armor_penetration = 0, isrightclick = FALSE)
+	SEND_SIGNAL(X, COMSIG_XENOMORPH_ATTACK_SENTRY)
 	return ..()
 
 /obj/machinery/deployable/mounted/sentry/take_damage(damage_amount, damage_type, damage_flag, effects, attack_dir, armour_penetration)
@@ -269,17 +252,42 @@
 		if(EXPLODE_LIGHT)
 			take_damage(rand(30, 100))
 
-/obj/machinery/deployable/mounted/sentry/attack_alien(mob/living/carbon/xenomorph/X, damage_amount = X.xeno_caste.melee_damage, damage_type = BRUTE, damage_flag = "", effects = TRUE, armor_penetration = 0, isrightclick = FALSE)
-	SEND_SIGNAL(X, COMSIG_XENOMORPH_ATTACK_SENTRY)
-	return ..()
+//----------------------------------------------------------------------------
+// Sentry Functions
+
+/obj/machinery/deployable/mounted/sentry/proc/sentry_alert(alert_code, mob/mob)
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
+	if(!alert_code || !CHECK_BITFIELD(sentry.turret_flags, TURRET_ALERTS) || !CHECK_BITFIELD(sentry.turret_flags, TURRET_ON))
+		return
+	if((CHECK_BITFIELD(alert_code, SENTRY_ALERT_HOSTILE) && (world.time < (last_alert + SENTRY_ALERT_DELAY))) || (!CHECK_BITFIELD(alert_code, SENTRY_ALERT_HOSTILE) && (world.time < (last_damage_alert + SENTRY_DAMAGE_ALERT_DELAY))) )
+		return
+
+	var/notice
+	switch(alert_code)
+		if(SENTRY_ALERT_AMMO)
+			notice = "<b>ALERT! [src]'s ammo depleted at: [AREACOORD_NO_Z(src)].</b>"
+		if(SENTRY_ALERT_HOSTILE)
+			notice = "<b>ALERT! [src] detected Hostile/Unknown: [mob.name] at: [AREACOORD_NO_Z(src)].</b>"
+		if(SENTRY_ALERT_FALLEN)
+			notice = "<b>ALERT! [src] has been knocked over at: [AREACOORD_NO_Z(src)].</b>"
+		if(SENTRY_ALERT_DAMAGE)
+			notice = "<b>ALERT! [src] has taken damage at: [AREACOORD_NO_Z(src)]. Remaining Structural Integrity: ([obj_integrity]/[max_integrity])[obj_integrity < 50 ? " CONDITION CRITICAL!!" : ""]</b>"
+		if(SENTRY_ALERT_DESTROYED)
+			notice = "<b>ALERT! [src] at: [AREACOORD_NO_Z(src)] has been destroyed!</b>"
+		if(SENTRY_ALERT_BATTERY)
+			notice = "<b>ALERT! [src]'s battery depleted at: [AREACOORD_NO_Z(src)].</b>"
+	playsound(loc, 'sound/machines/warning-buzzer.ogg', 50, FALSE)
+	radio.talk_into(src, "[notice]", FREQ_COMMON)
+	if(CHECK_BITFIELD(alert_code, SENTRY_ALERT_HOSTILE))
+		last_alert = world.time
+		return
+	last_damage_alert = world.time
 
 /obj/machinery/deployable/mounted/sentry/process()
-	
+	var/obj/item/weapon/gun/sentry/sentry = internal_item
 	if(knocked_down)
 		stop_processing()
 		return
-
-	var/obj/item/weapon/gun/sentry/sentry = internal_item
 
 	if(!sentry.current_mag)
 		sentry_alert(SENTRY_ALERT_AMMO)
@@ -310,12 +318,25 @@
 	target = new_target
 	if(CHECK_BITFIELD(sentry.turret_flags, TURRET_RADIAL))
 		sentry.battery.charge -= 20
+		var/new_dir = get_dir(src, target)
+		switch(new_dir)
+			if(NORTHWEST)
+				new_dir = NORTH
+			if(NORTHEAST)
+				new_dir = EAST
+			if(SOUTHWEST)
+				new_dir = WEST
+			if(SOUTHEAST)
+				new_dir = SOUTH
+		setDir(new_dir)
 		if(sentry.battery.charge <= 0)
 			sentry_alert(SENTRY_ALERT_BATTERY)
 			DISABLE_BITFIELD(sentry.turret_flags, TURRET_RADIAL)
 			sentry.battery.forceMove(loc)
 			sentry.battery.charge = 0
 			sentry.battery = null
+	if(sentry.gun_firemode != GUN_FIREMODE_SEMIAUTO)
+		sentry.do_toggle_firemode(new_firemode = GUN_FIREMODE_SEMIAUTO)
 	sentry.start_fire(src, target, bypass_checks = TRUE)
 
 /obj/machinery/deployable/mounted/sentry/proc/get_target()
